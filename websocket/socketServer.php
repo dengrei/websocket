@@ -10,6 +10,7 @@ class socketServer extends Websocket
 	 * @param $debug    debug为调试开关，为true是会记录日志
 	 */
 	function __construct($port, $address = '0.0.0.0', $debug = false) {
+		  $this->debug        = $debug;
 		  $this->serverSocket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
 		  socket_set_option($this->serverSocket, SOL_SOCKET, SO_REUSEADDR, 1);
 		  socket_set_option($this->serverSocket, SOL_SOCKET, TCP_NODELAY, 1);
@@ -49,6 +50,28 @@ class socketServer extends Websocket
 	function showData($data)
 	{
 		
+	}
+	function removeUnhandshakeConnect()
+	{
+		
+	}
+	/**
+	 *
+	 * 将header信息转换为数组
+	 * @param string $headers
+	 */
+	function getHeaders($headers)
+	{
+		$headData = explode("\r\n",$headers);
+	
+		$newData  = array();
+		foreach ($headData as $item){
+			if(strpos($item,':')){
+				$itemdata = explode(':',$item);
+				$newData[$itemdata[0]] = trim($itemdata[1]);
+			}
+		}
+		return $newData;
 	}
 	function __destruct() {
 	  	socket_close($this->serverSocket);

@@ -18,6 +18,7 @@ class Websocket
 	protected $shutdown         = false;     //关闭状态，如果是true表示服务器准备关闭
 	protected $socketList       = array();   //保存所有socket的数组
 	protected $socketListMap    = array();   //根据唯一id对socket进行索引，并保存socket的其他自定义属性
+	protected $debug            = false;
 	private $handshakingList    = array();   //正在进行握手的socket
 	private $lastHealthCheck    = null;      //最后一次进行健康检查的时间，这里根据最后一次通信时间判断健康状态，检查时默认不会发送pong帧
 	private $healthCheckInterval= 300;       //健康检查间隔，单位秒，每次处理完一个连接后会判断是否进行健康检查。
@@ -126,7 +127,7 @@ class Websocket
 	 */
   	function onconnected($socket) {
 	    if ($this->debug) {
-	      	printf('进入连接 %s-%s', date('Y-m-d H:i:s'), $socket . "\n");
+	      	printf('connected %s-%s', date('Y-m-d H:i:s'), $socket . "\n");
 	    }
   	}
 	/**
@@ -676,7 +677,7 @@ class Websocket
 		
 		  //checkBaseHeader用于检查基本头信息，如果有任何一个头信息不符合WebSocket协议，则检查失败
 		  //checkCustomHeader为用户自定义头部检查，需要继承类覆盖实现，一般检查cookie、origin等与业务相关的头部信息
-		  if (!$this->checkBaseHeader($headers) || !$this->checkCustomHeader($headers)) {
+		  if (!$this->checkBaseHeader($headers)) {
 			    //生成握手失败响应
 			    $this->badRequest($socketId);
 			
