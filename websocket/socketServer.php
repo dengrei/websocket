@@ -40,7 +40,10 @@ class socketServer extends Websocket
 	 */
 	function businessHandler($socketId)
 	{
-		
+		 $buffer = $this->socketListMap[$socketId]['buffer'];
+		 $data   = $this->createFrame($buffer, self::FRAME_BIN);
+		 
+		 $this->socketSend($socketId, $data);
 	}
 	/**
 	 *

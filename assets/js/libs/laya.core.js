@@ -11278,7 +11278,7 @@ window.Laya=(function(window,document){
 		*/
 		__proto.flush=function(){
 			if (this._output && this._output.length > 0){
-				try {console.log(this._output.__getBuffer().slice(0,this._output.length));
+				try {
 					this._socket && this._socket.send(this._output.__getBuffer().slice(0,this._output.length));
 					this._output.endian=this.endian;
 					this._output.clear();

@@ -49,7 +49,7 @@
 		
 		socket = new Socket();
 		//socket.connect("echo.websocket.org", 80);
-		socket.connectByUrl("ws://192.168.5.67:8000/websocket/websocket.php");
+		socket.connectByUrl("ws://127.0.0.1:8000/server.php");
 
 		output = socket.output;
 
@@ -62,16 +62,10 @@
 	function onSocketOpen()
 	{
 		$('.state').append("连接服务器成功<br>");
-		// 使用output.writeByte发送
+		
 		$('#send').click(function(){
 			var message = $('#msg').val();
-			var cnt = '';
-			for (var i = 0; i < message.length; ++i)
-			{
-				output.writeByte(message.charCodeAt(i));
-				cnt += message.charCodeAt(i);
-			}
-			console.log(cnt);
+			output.writeUTFString(message);
 			socket.flush();
 		});
 	}
@@ -86,11 +80,12 @@
 		console.log("Message from server:");
 		if (typeof message == "string")
 		{
-			console.log(message);
+			console.log('内容：'+message);
 		}
 		else if (message instanceof ArrayBuffer)
 		{
-			console.log(new Byte(message).readUTFBytes());
+			
+			console.log('utf8:'+new Byte(message).readUTFBytes());
 		}
 		socket.input.clear();
 	}

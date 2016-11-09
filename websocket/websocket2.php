@@ -280,11 +280,13 @@ class Websocket
 	 */
 	private function getPayloadLen($data)
 	{
-		$first    = ord($data[0]) & 0x7F;
+		$first    = ord($data[0]) & 0x7F;echo $first;
 		$second   = (ord($data[1]) << 8) + ord($data[2]);
-		$third    = (ord($data[3]) << 40) + (ord($data[4]) << 32) + (ord($data[5]) << 24) + (ord($data[6]) << 16);
-		$third   += (ord($data[7]) << 8) + ord($data[8]);
+		$third    = (ord($data[3]) << 40) + (ord($data[4]) << 32) + (ord($data[5]) << 24);
 		
+		if(strlen($data) > 6){
+			$third   += (ord($data[6]) << 16) + (ord($data[7]) << 8) + ord($data[8]);
+		}
 		if($first < 126){
 			return $first;
 		}
@@ -375,6 +377,7 @@ class Websocket
 	    for ($i = 0; $i < $payloadLen; $i++) {
 	      	$dest .= chr(ord($payload[$i]) ^ $maskArr[$i % 4]);
 	    }
+
 	    return $dest;
   	}
 	/**
@@ -453,9 +456,10 @@ class Websocket
 			    $this->disconnect($socketId);
 			    return false;
 		  }
+		  
 		  //获取负载的长度字节数
 		  $payloadLen = $this->getPayloadLen(substr($data, 1, 9));
-		
+		  
 		  //根据负载长度获取负载的全部数据
 		  $payload = $this->getPayloadData($data, $payloadLen);
 		
