@@ -6,6 +6,23 @@
 
 class Websocket
 {
+	//各种帧类型的常量
+	const FRAME_CONTINUE = 0x00;
+	const FRAME_TEXT     = 0x01;
+	const FRAME_BIN      = 0x02;
+	const FRAME_CLOSE    = 0x08; //关闭帧
+	const FRAME_PING     = 0x09;  //ping帧
+	const FRAME_PONG     = 0x0A;  //pong帧
+	
+	protected $serverSocket     = null;      //服务器监听的socket
+	protected $shutdown         = false;     //关闭状态，如果是true表示服务器准备关闭
+	protected $socketList       = array();   //保存所有socket的数组
+	protected $socketListMap    = array();   //根据唯一id对socket进行索引，并保存socket的其他自定义属性
+	private $handshakingList    = array();   //正在进行握手的socket
+	private $lastHealthCheck    = null;      //最后一次进行健康检查的时间，这里根据最后一次通信时间判断健康状态，检查时默认不会发送pong帧
+	private $healthCheckInterval= 300;       //健康检查间隔，单位秒，每次处理完一个连接后会判断是否进行健康检查。
+	private $handshakeTimeout   = 10;        //握手超时时间，单位秒，为了防止过多的未完成握手占用系统资源，会对超时的握手连接进行关闭处理。
+	
 	public function run()
 	{
 	  //将服务器的socket添加到初始化socket列表中
@@ -50,40 +67,40 @@ class Websocket
 			        //接收传来的数据
 			        $data = $this->socketRecv($socketId);
 			        if (strlen($data) > 0) {
-			          //收到的数据长度不为空时，需要重置连接错误计数
-			          $this->socketListMap[$socketId]['errorCnt'] = 0;
-			          if (!isset($this->socketListMap[$socketId])) {
-			            $this->disconnect($socketId);
-			            continue;
-			          } else if (!$this->socketListMap[$socketId]['handshake']) {
-			            //尚未进行WebSocket协议握手，尝试读取连接缓冲区，如果缓冲区中没有数据，则将socketId记录到握手中列表
-			            //这是为了防止握手包被分成多个包进行传递（正常情况下不会出现此问题）
-			            //但根据HTTP协议，并未规定HTTP请求头不能被分割，故应该根据协议中的\r\n\r\n来判断请求头已发送完毕
-			            if (strlen($this->socketListMap[$socketId]['buffer']) === 0) {
-			              $this->handshakingList[$socketId] = time();
-			            }
-			            //将数据写入缓冲区
-			            $this->socketListMap[$socketId]['buffer'] .= $data;
-			            //比较后4个字节是否为\r\n\r\n
-			            if (substr_compare($this->socketListMap[$socketId]['buffer'], str_repeat(chr(0x0D) . chr(0x0A), 2), -4) === 0) {
-			              //进行握手处理
-			              $this->doHandShake($socketId);
-			            } else {
-			              //数据没有传送完毕，需要缓冲数据直到全部接收请求头（这个可以通过Telnet命令直接连接，每输入一个字节都会立即传给服务器，这时服务器应该缓存内容。但同时也应该设置超时时间，防止恶意占用服务器资源。）
-			              $this->onUpgradePartReceive($socketId);
-			            }
-			          } else if ($this->parseFrame($data, $socketId)) {
-			            //parseFrame会解析数据帧，如果该帧FIN标识为1则函数会返回true，交给businessHandler进行业务逻辑处理，数据在socketListMap的buffer中，所以只需要提供socketId即可找到该socket的所有信息。
-			            $this->businessHandler($socketId);
-			          }
+				          //收到的数据长度不为空时，需要重置连接错误计数
+				          $this->socketListMap[$socketId]['errorCnt'] = 0;
+				          if (!isset($this->socketListMap[$socketId])) {
+					            $this->disconnect($socketId);
+					            continue;
+				          } else if (!$this->socketListMap[$socketId]['handshake']) {
+					            //尚未进行WebSocket协议握手，尝试读取连接缓冲区，如果缓冲区中没有数据，则将socketId记录到握手中列表
+					            //这是为了防止握手包被分成多个包进行传递（正常情况下不会出现此问题）
+					            //但根据HTTP协议，并未规定HTTP请求头不能被分割，故应该根据协议中的\r\n\r\n来判断请求头已发送完毕
+					            if (strlen($this->socketListMap[$socketId]['buffer']) === 0) {
+					              	$this->handshakingList[$socketId] = time();
+					            }
+					            //将数据写入缓冲区
+					            $this->socketListMap[$socketId]['buffer'] .= $data;
+					            //比较后4个字节是否为\r\n\r\n
+					            if (substr_compare($this->socketListMap[$socketId]['buffer'], str_repeat(chr(0x0D) . chr(0x0A), 2), -4) === 0) {
+						              //进行握手处理
+						              $this->doHandShake($socketId);
+					            } else {
+					              //数据没有传送完毕，需要缓冲数据直到全部接收请求头（这个可以通过Telnet命令直接连接，每输入一个字节都会立即传给服务器，这时服务器应该缓存内容。但同时也应该设置超时时间，防止恶意占用服务器资源。）
+					              $this->onUpgradePartReceive($socketId);
+					            }
+				          } else if ($this->parseFrame($data, $socketId)) {
+					            //parseFrame会解析数据帧，如果该帧FIN标识为1则函数会返回true，交给businessHandler进行业务逻辑处理，数据在socketListMap的buffer中，所以只需要提供socketId即可找到该socket的所有信息。
+					            $this->businessHandler($socketId);
+				          }
 			        } else {
-			          $this->socketListMap[$socketId]['errorCnt'] += 1;
-			          if ($this->debug){
-			            echo "Receive empty data![$errorCnt]\n";
-			          }
-			          if ($errorCnt >= 3) {
-			            $this->disconnect($socketId);
-			          }
+				          $this->socketListMap[$socketId]['errorCnt'] += 1;
+				          if ($this->debug){
+				            echo "Receive empty data![$errorCnt]\n";
+				          }
+				          if ($errorCnt >= 3) {
+				            $this->disconnect($socketId);
+				          }
 			        }
 		      }
 		    }
@@ -494,11 +511,14 @@ class Websocket
 		    	echo $this->getLastErrMsg();
 		  }
 	}
-	//从指定socket中读取数据
+	/**
+	 *从缓存区中获取socket数据
+	 * @param string $socketId
+	 */
 	function socketRecv($socketId) {
-		  $socket = $this->socketListMap[$socketId]['socket'];
+		  $socket    = $this->socketListMap[$socketId]['socket'];
 		  $bufferLen = socket_get_option($socket, SOL_SOCKET, SO_RCVBUF);
-		  $recv = socket_recv($socket, $buffer, $bufferLen, 0);
+		  $recv      = socket_recv($socket, $buffer, $bufferLen, 0);
 		  if ($recv === FALSE) {
 			    $errCode = $this->getLastErrCode($socketId);
 			    $this->onerror($errCode, $socketId);
@@ -508,8 +528,8 @@ class Websocket
 			    return NULL;
 		  } else if ($recv > 0) {
 			    if ($this->debug) {
-				      echo "Recv:\n";
-				      $this->showData($buffer);
+				      echo "Recv:ok\n";
+				      //$this->showData($buffer);
 			    }
 		    	$this->socketListMap[$socketId]['lastCommuicate'] = time();
 		  }
@@ -564,6 +584,10 @@ class Websocket
 		  }
 		  $this->removeSocket($socketId);
 	}
+	/**
+	 *接收到完整的请求头，并处理
+	 * @param $socketId
+	 */
 	function doHandShake($socketId){
 		  //一旦进入了doHandshake函数，说明已收到完整的请求头，故将此socketId从handshakingList中移除
 		  array_splice($this->handshakingList, array_search($socketId, $this->handshakingList), 1);

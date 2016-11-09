@@ -2,24 +2,6 @@
 include 'websocket2.php';
 class socketServer extends Websocket
 {
-	//各种帧类型的常量
-	const FRAME_CONTINUE = 0x00;
-	const FRAME_TEXT     = 0x01;
-	const FRAME_BIN      = 0x02;
-	const FRAME_CLOSE    = 0x08; //关闭帧
-	const FRAME_PING     = 0x09;  //ping帧
-	const FRAME_PONG     = 0x0A;  //pong帧
-	
-	protected $serverSocket     = null;      //服务器监听的socket
-	protected $shutdown         = false;     //关闭状态，如果是true表示服务器准备关闭
-	protected $socketList       = array();   //保存所有socket的数组
-	protected $socketListMap    = array();   //根据唯一id对socket进行索引，并保存socket的其他自定义属性
-	private $handshakingList    = array();   //正在进行握手的socket
-	private $lastHealthCheck    = null;      //最后一次进行健康检查的时间，这里根据最后一次通信时间判断健康状态，检查时默认不会发送pong帧
-	private $healthCheckInterval= 300;       //健康检查间隔，单位秒，每次处理完一个连接后会判断是否进行健康检查。
-	private $handshakeTimeout   = 10;        //握手超时时间，单位秒，为了防止过多的未完成握手占用系统资源，会对超时的握手连接进行关闭处理。
-	
-	
 	/**
 	 *
 	 *连接socket服务器
