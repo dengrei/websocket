@@ -32,6 +32,24 @@ class socketServer extends Websocket
 		  $this->lastHealthCheck = time();
 		  $this->run();
 	}
+	/**
+	 *
+	 * 业务逻辑
+	 * @param $socketId
+	 */
+	function businessHandler($socketId)
+	{
+		
+	}
+	/**
+	 *
+	 * 输出接收的数据
+	 * @param unknown_type $data
+	 */
+	function showData($data)
+	{
+		
+	}
 	function __destruct() {
 	  	socket_close($this->serverSocket);
 	}

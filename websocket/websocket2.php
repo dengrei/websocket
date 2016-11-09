@@ -83,11 +83,11 @@ class Websocket
 					            $this->socketListMap[$socketId]['buffer'] .= $data;
 					            //比较后4个字节是否为\r\n\r\n
 					            if (substr_compare($this->socketListMap[$socketId]['buffer'], str_repeat(chr(0x0D) . chr(0x0A), 2), -4) === 0) {
-						              //进行握手处理
-						              $this->doHandShake($socketId);
+						              	//进行握手处理
+						              	$this->doHandShake($socketId);
 					            } else {
-					              //数据没有传送完毕，需要缓冲数据直到全部接收请求头（这个可以通过Telnet命令直接连接，每输入一个字节都会立即传给服务器，这时服务器应该缓存内容。但同时也应该设置超时时间，防止恶意占用服务器资源。）
-					              $this->onUpgradePartReceive($socketId);
+					              	  	//数据没有传送完毕，需要缓冲数据直到全部接收请求头
+					              		$this->onUpgradePartReceive($socketId);
 					            }
 				          } else if ($this->parseFrame($data, $socketId)) {
 					            //parseFrame会解析数据帧，如果该帧FIN标识为1则函数会返回true，交给businessHandler进行业务逻辑处理，数据在socketListMap的buffer中，所以只需要提供socketId即可找到该socket的所有信息。
@@ -111,14 +111,17 @@ class Websocket
 		    $this->removeUnhandshakeConnect();
   		}
 	}
-	
+	/**
+  	 *
+  	 * 服务器启动提示
+  	 */
 	function onstarted($serverSocket) {
 	    if ($this->debug) {
 	      	printf('Server start at %s', date('Y-m-d H:i:s') . "\n");
 	    }
   	}
 	/**
-	 * 已连接
+	 * 接入提示
 	 * @param resource $socket
 	 */
   	function onconnected($socket) {
@@ -126,44 +129,65 @@ class Websocket
 	      	printf('进入连接 %s-%s', date('Y-m-d H:i:s'), $socket . "\n");
 	    }
   	}
-
+	/**
+  	 *
+  	 * 解析数据成功提示
+  	 */
   	function onUpgradePartReceive($socketId) {
 	    if ($this->debug) {
 		      $buffer = $this->socketListMap[$socketId]['buffer'];
 		      printf('Receive Upgrade Part at %s-%s%s(%d bytes)' . "\n", date('Y-m-d H:i:s'), $socketId . "\n", $buffer, strlen($buffer));
 	    }
   	}
-
+	/**
+  	 *
+  	 * 握手失败提示
+  	 */
   	function onHandShakeFailure($socketId) {
 	    if ($this->debug) {
 	      	printf('HandShake Failed at %s-%s', date('Y-m-d H:i:s'), $socketId . "\n");
 	    }
   	}
-
+	/**
+  	 *
+  	 * 握手成功提示
+  	 */
   	function onHandShakeSuccess($socketId) {
 	    if ($this->debug) {
 	      	printf('HandShake Success at %s-%s', date('Y-m-d H:i:s'), $socketId . "\n");
 	    }
   	}
-
+	/**
+  	 *
+  	 * 连接断开提示
+  	 */
   	function ondisconnected($socketId) {
 	    if ($this->debug) {
 	      	printf('Socket disconnect at %s-%s', date('Y-m-d H:i:s'), $socketId . "\n");
 	    }
   	}
-
+	/**
+  	 *
+  	 * 关闭连接提示
+  	 */
   	function onAfterRemoveSocket($socketId) {
 	    if ($this->debug) {
 	      	printf('[onAfterRemoveSocket]remove:' . $socketId . ',left:' . implode('|', array_keys($this->socketListMap)) . "\n");
 	    }
   	}
-
+	/**
+  	 *
+  	 *关闭不健康的连接
+  	 */
   	function onafterhealthcheck($unhealthyList) {
 	    foreach ($unhealthyList as $socketId) {
 	      	$this->disconnect($socketId);
 	    }
   	}
-
+  	/**
+  	 *
+  	 * 错误提示
+  	 */
   	function onerror($errCode, $socketId) {
 	    switch ($errCode) {
 	    case 10053:
@@ -176,13 +200,19 @@ class Websocket
 		      break;
 	    }
   	}
-
+  	/**
+  	 *
+  	 * 服务器关闭提示
+  	 */
   	function onshutdown() {
 	    if ($this->debug) {
 	      	printf('Server shutdown!');
 	    }
   	}
-	//获取最后一次socket的错误码
+	/**
+	 * 获取最后一次socket的错误码
+	 * @param string $socketId
+	 */
   	function getLastErrCode($socketId = null) {
 	    if (is_null($socketId)) {
 	      	$socket = $this->serverSocket;
@@ -192,7 +222,12 @@ class Websocket
 	    return socket_last_error($socket);
   	}
 
-  	//通过错误码查找错误详情
+  	/**
+  	 *
+  	 * 通过错误码查找错误详情
+  	 * @param $socketId
+  	 * @param $errCode
+  	 */
   	function getLastErrMsg($socketId = null, $errCode = null) {
 	    if (!is_numeric($errCode)) {
 	      	$errCode = $this->getLastErrCode($socketId);
@@ -200,7 +235,7 @@ class Websocket
     	return '[' . $errCode . ']' . socket_strerror($errCode) . "\n";
   	}
 	/**
-	 * 健康检测，保证服务器正常
+	 * 健康检测，断开不正常的连接，保证服务器正常
 	 */
 	private function healthCheck()
 	{
@@ -324,7 +359,11 @@ class Websocket
 	{
 		return $frameType===self::FRAME_CLOSE||$frameType===self::FRAME_PING||$frameType===self::FRAME_PONG;
 	}
-	//处理负载的掩码，将其还原
+	/**
+	 * 处理负载的掩码，将其还原
+	 * @param $payload
+	 * @param $mask
+	 */
 	function parseRawFrame($payload, $mask) {
 	    $payloadLen = strlen($payload);
 	    $dest       = '';
@@ -337,15 +376,29 @@ class Websocket
 	    }
 	    return $dest;
   	}
-
+	/**
+	 *处理文本帧
+	 * @param $payload
+	 * @param $mask
+	 */
   	function parseTextFrame($payload, $mask) {
     	return $this->parseRawFrame($payload, $mask);
   	}
-
+	/**
+	 *
+	 * 处理二进制帧
+	 * @param $payload
+	 * @param $mask
+	 */
   	function parseBinaryFrame($payload, $mask) {
     	return $this->parseRawFrame($payload, $mask);
   	}
-	//创建并发送关闭帧
+	/**
+	 * 创建并发送关闭帧
+	 * @param string $socketId
+	 * @param number $closeCode
+	 * @param string $closeMsg
+	 */
   	function closeFrame($socketId, $closeCode = 1000, $closeMsg = 'goodbye') {
 	    $closeCode = chr(intval($closeCode / 256)) . chr($closeCode % 256);
 	    $frame     = $this->createFrame($closeCode . $closeMsg, self::FRAME_CLOSE);
@@ -381,73 +434,78 @@ class Websocket
 	    $frame .= $data;
 	    return $frame;
   	}
+  	/**
+  	 *解析数据帧
+  	 * @param $data
+  	 * @param $socketId
+  	 */
 	function parseFrame($data, $socketId) {
-	  //判断该帧是否是经过掩码处理
-	  $isMasked = $this->isMasked($data[1]);
-	
-	  //如果未经掩码处理，则根据协议规定，需要断开连接
-	  if (!$isMasked) {
-	    //此处使用1002状态码，表示协议错误，发送关闭帧
-	    $this->closeFrame($socketId, 1002, 'There is no mask!');
-	
-	    //断开连接
-	    $this->disconnect($socketId);
-	    return false;
-	  }
-	  //获取负载的长度字节数
-	  $payloadLen = $this->getPayloadLen(substr($data, 1, 9));
-	
-	  //根据负载长度获取负载的全部数据
-	  $payload = $this->getPayload($data, $payloadLen);
-	
-	  //获取掩码值
-	  $mask = $this->getMask($data, $payloadLen);
-	
-	  //获取帧的类型
-	  $frameType = $this->getFrameType($data[0]);
-	
-	  //处理帧
-	  switch ($frameType) {
-	  case self::FRAME_CONTINUE:
-	    //后续帧，需要拼接buffer
-	    $this->socketListMap[$socketId]['buffer'] .= $this->parseRawFrame($payload, $mask);
-	    break;
-	  case self::FRAME_TEXT:
-	    //文本帧，处理方式默认保持一致，均使用parseRawFrame处理，如果由特殊需求可以重写parseTextFrame函数
-	    $this->socketListMap[$socketId]['buffer'] = $this->parseTextFrame($payload, $mask);
-	    break;
-	  case self::FRAME_BIN:
-	    //二进制帧，处理方式默认保持一致，均使用parseRawFrame处理，如果由特殊需求可以重写parseBinaryFrame函数
-	    $this->socketListMap[$socketId]['buffer'] = $this->parseBinaryFrame($payload, $mask);
-	    break;
-	  case self::FRAME_CLOSE:
-	    //发送关闭帧（应答帧）
-	    $this->closeFrame($socketId);
-	    break;
-	  case self::FRAME_PING:
-	    //发送pong帧响应，浏览器目前不提供ping、pong帧的API，此处逻辑基本不会走到，只为实现协议内容
-	    $this->sendPong($socketId, $this->parseRawFrame($payload, $mask));
-	    break;
-	  case self::FRAME_PONG:
-	    //收到pong帧不进行任何处理（正常情况下不会收到，浏览器不会主动发送pong帧）
-	    break;
-	  default:
-	    //其他帧类型无法处理，直接断开连接，根据协议，此处使用1003状态码关闭连接更好
-	    $this->disconnect($socketId);
-	    break;
-	  }
-	  if ($this->debug) {
-	    //输出调试信息
-	    echo "isFin:" . ((ord($data[0]) & 0x80) >> 7) . "\n";
-	    echo "opCode:$frameType\n";
-	    echo "payLoad Length:$payloadLen\n";
-	    echo "Mask:$mask\n\n";
-	  }
-	
-	  //如果是结束的数据帧，返回true，否则均为false
-	  //当返回true时，外层调用函数会继续将执行核心业务逻辑，读取缓冲区中的数据进行处理
-	  //如果是false，则不进行进一步的处理（控制帧及非结束帧都不会提交到业务层处理）
-	  return $this->isFin($data[0]) && !$this->isControlFrame($frameType);
+		  //判断该帧是否是经过掩码处理
+		  $isMasked = $this->isMasked($data[1]);
+		
+		  //如果未经掩码处理，则根据协议规定，需要断开连接
+		  if (!$isMasked) {
+			    //此处使用1002状态码，表示协议错误，发送关闭帧
+			    $this->closeFrame($socketId, 1002, 'There is no mask!');
+			
+			    //断开连接
+			    $this->disconnect($socketId);
+			    return false;
+		  }
+		  //获取负载的长度字节数
+		  $payloadLen = $this->getPayloadLen(substr($data, 1, 9));
+		
+		  //根据负载长度获取负载的全部数据
+		  $payload = $this->getPayloadData($data, $payloadLen);
+		
+		  //获取掩码值
+		  $mask = $this->getMask($data, $payloadLen);
+		
+		  //获取帧的类型
+		  $frameType = $this->getFrameType($data[0]);
+		
+		  //处理帧
+		  switch ($frameType) {
+		  case self::FRAME_CONTINUE:
+			    //后续帧，需要拼接buffer
+			    $this->socketListMap[$socketId]['buffer'] .= $this->parseRawFrame($payload, $mask);
+			    break;
+		  case self::FRAME_TEXT:
+			    //文本帧，处理方式默认保持一致，均使用parseRawFrame处理，如果由特殊需求可以重写parseTextFrame函数
+			    $this->socketListMap[$socketId]['buffer'] = $this->parseTextFrame($payload, $mask);
+			    break;
+		  case self::FRAME_BIN:
+			    //二进制帧，处理方式默认保持一致，均使用parseRawFrame处理，如果由特殊需求可以重写parseBinaryFrame函数
+			    $this->socketListMap[$socketId]['buffer'] = $this->parseBinaryFrame($payload, $mask);
+			    break;
+		  case self::FRAME_CLOSE:
+			    //发送关闭帧（应答帧）
+			    $this->closeFrame($socketId);
+			    break;
+		  case self::FRAME_PING:
+			    //发送pong帧响应，浏览器目前不提供ping、pong帧的API，此处逻辑基本不会走到，只为实现协议内容
+			    //$this->sendPong($socketId, $this->parseRawFrame($payload, $mask));
+			    break;
+		  case self::FRAME_PONG:
+			    //收到pong帧不进行任何处理（正常情况下不会收到，浏览器不会主动发送pong帧）
+			    break;
+		  default:
+			    //其他帧类型无法处理，直接断开连接，根据协议，此处使用1003状态码关闭连接更好
+			    $this->disconnect($socketId);
+			    break;
+		  }
+		  if ($this->debug) {
+		    //输出调试信息
+		    echo "isFin:" . ((ord($data[0]) & 0x80) >> 7) . "\n";
+		    echo "opCode:$frameType\n";
+		    echo "payLoad Length:$payloadLen\n";
+		    echo "Mask:$mask\n\n";
+		  }
+		
+		  //如果是结束的数据帧，返回true，否则均为false
+		  //当返回true时，外层调用函数会继续将执行核心业务逻辑，读取缓冲区中的数据进行处理
+		  //如果是false，则不进行进一步的处理（控制帧及非结束帧都不会提交到业务层处理）
+		  return $this->isFin($data[0]) && !$this->isControlFrame($frameType);
 	}
 	/**
 	 * 获取socket唯一标识
@@ -482,23 +540,28 @@ class Websocket
 			    'errorCnt' => 0
 		  );
 	}
+	/**
+	 *
+	 * 移除socket
+	 * @param $socketId
+	 */
 	function removeSocket($socketId) {
-	  $socket = $this->socketListMap[$socketId]['socket'];
-	
-	  //找出socket在socketList中的索引
-	  $socketIndex = array_search($socket, $this->socketList);
-	  if ($this->debug) {
-	    echo "RemoveSocket at $socketIndex\n";
-	  }
-	
-	  //移除socketList中的socket
-	  array_splice($this->socketList, $socketIndex, 1);
-	
-	  //移除socketListMap中的相关信息
-	  unset($this->socketListMap[$socketId]);
-	
-	  //回调事件
-	  $this->onAfterRemoveSocket($socketId);
+		  $socket = $this->socketListMap[$socketId]['socket'];
+		
+		  //找出socket在socketList中的索引
+		  $socketIndex = array_search($socket, $this->socketList);
+		  if ($this->debug) {
+		    	echo "RemoveSocket at $socketIndex\n";
+		  }
+		
+		  //移除socketList中的socket
+		  array_splice($this->socketList, $socketIndex, 1);
+		
+		  //移除socketListMap中的相关信息
+		  unset($this->socketListMap[$socketId]);
+		
+		  //回调事件
+		  $this->onAfterRemoveSocket($socketId);
 	}
 	/**
 	 * 接收socket
@@ -535,6 +598,11 @@ class Websocket
 		  }
 		  return $buffer;
 	}
+	/**
+	 * 发送数据包
+	 * @param $socketId
+	 * @param $data
+	 */
 	function socketSend($socketId, $data) {
 	  $socket = $this->socketListMap[$socketId]['socket'];
 	  if ($this->debug) {
@@ -545,13 +613,17 @@ class Websocket
 	    	$this->socketListMap[$socketId]['lastCommuicate'] = time();
 	  }
 	}
+	/**
+	 *关闭socket
+	 * @param $socketId
+	 */
 	function socketClose($socketId) {
 		  $socket = $this->socketListMap[$socketId]['socket'];
 		  socket_close($socket);
 	}
 	/**
 	 *
-	 *进入连接
+	 *连接socket
 	 * @param resource $socket
 	 */
 	function connect($socket) {
@@ -627,6 +699,10 @@ class Websocket
 		  //握手成功回调
 		  $this->onHandShakeSuccess($socketId);
 	}
+	/**
+	 *检查头部信息
+	 * @param array $header
+	 */
 	function checkBaseHeader($header) {
 		  //检查Upgrade字段是否为websocket
 		  return strcasecmp($header['Upgrade'], 'websocket') === 0 &&
@@ -637,6 +713,11 @@ class Websocket
 		  //检查WebSocket协议版本是否为13，该类仅处理版本为13的WebSocket协议
 	      $header['Sec-WebSocket-Version'] === '13';
 	}
+	/**
+	 *
+	 * 响应握手错误信息
+	 * @param $socketId
+	 */
 	function badRequest($socketId) {
 		  //该函数仅拼装握手错误的响应信息，并发送
 		  $message = 'This is a websocket server!';
@@ -647,6 +728,10 @@ class Websocket
 		  $out .= $message;
 		  $this->socketSend($socketId, $out);
 	}
+	/**
+	 *封装响应头信息
+	 * @param $headers
+	 */
 	function getHandShakeHeader($headers) {
 		  //拼装响应头的相关字段
 		  $responseHeader = array(
@@ -662,6 +747,11 @@ class Websocket
 		  }
 		  return implode("\r\n", $responseHeader) . "\r\n\r\n";
 	}
+	/**
+	 *
+	 * 计算WebSocket-accept-key
+	 * @param $websocketKey
+	 */
 	function getWebSocketAccept($websocketKey) {
 	  	//根据协议要求，计算WebSocket-accept-key
 	  	return base64_encode(sha1($websocketKey . '258EAFA5-E914-47DA-95CA-C5AB0DC85B11', true));
