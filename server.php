@@ -2,4 +2,6 @@
 
 include 'websocket/socketServer.php';
 
-new socketServer(8000,'127.0.0.1',true);
+$server = socketServer::getInstance();
+
+$server->bootServer('127.0.0.1',8000,true);

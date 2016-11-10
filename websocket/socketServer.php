@@ -2,14 +2,24 @@
 include 'websocket2.php';
 class socketServer extends Websocket
 {
+	private $obj = null;
+	
+	public static function getInstance()
+	{
+		if(self::$obj === null){
+			self::$obj = new socketServer();
+		}
+		return self::$obj;
+	}
 	/**
 	 *
 	 *连接socket服务器
-	 * @param $port     监听的端口号
 	 * @param $address  监听的IP地址，0.0.0.0表示监听本机上任何地址
+	 * @param $port     监听的端口号
 	 * @param $debug    debug为调试开关，为true是会记录日志
 	 */
-	function __construct($port, $address = '0.0.0.0', $debug = false) {
+	public function bootServer($address = '0.0.0.0',$port, $debug = false)
+	{
 		  $this->debug        = $debug;
 		  $this->serverSocket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
 		  socket_set_option($this->serverSocket, SOL_SOCKET, SO_REUSEADDR, 1);
@@ -38,23 +48,27 @@ class socketServer extends Websocket
 	 * 业务逻辑
 	 * @param $socketId
 	 */
-	function businessHandler($socketId)
+	public function businessHandler($socketId)
 	{
 		 $buffer = $this->socketListMap[$socketId]['buffer'];
+		 
+		 //发送数据
 		 $data   = $this->createFrame($buffer, self::FRAME_BIN);
 		 
-		 $this->socketSend($socketId, $data);
+		 foreach($this->socketListMap as $socketId=>$item){
+		 	$this->socketSend($socketId, $data);
+		 }
 	}
 	/**
 	 *
 	 * 输出接收的数据
 	 * @param unknown_type $data
 	 */
-	function showData($data)
+	public function showData($data)
 	{
 		
 	}
-	function removeUnhandshakeConnect()
+	public function removeUnhandshakeConnect()
 	{
 		
 	}
@@ -63,7 +77,7 @@ class socketServer extends Websocket
 	 * 将header信息转换为数组
 	 * @param string $headers
 	 */
-	function getHeaders($headers)
+	public function getHeaders($headers)
 	{
 		$headData = explode("\r\n",$headers);
 	
@@ -76,7 +90,7 @@ class socketServer extends Websocket
 		}
 		return $newData;
 	}
-	function __destruct() {
+	public function __destruct() {
 	  	socket_close($this->serverSocket);
 	}
 }
