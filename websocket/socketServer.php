@@ -1,5 +1,5 @@
 <?php
-include 'websocket2.php';
+include 'BaseSocket.php';
 class socketServer extends Websocket
 {
 	private static $obj = null;
