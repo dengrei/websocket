@@ -2,7 +2,7 @@
 include 'websocket2.php';
 class socketServer extends Websocket
 {
-	private $obj = null;
+	private static $obj = null;
 	
 	public static function getInstance()
 	{
@@ -108,10 +108,9 @@ class socketServer extends Websocket
 	{
 		if($this->debug || $show){
 			//直接输出
-			$msg.= "+++++++++++++++++++++++++++++++++++++++\n";
-			$msg = iconv('utf-8', 'gbk//IGNORE', $msg);
-			echo $msg;
 			echo "+++++++++++++++++++++++++++++++++++++++\n";
+			$msg = iconv('utf-8', 'gbk//IGNORE', $msg);
+			echo $msg."\n";
 		}else{
 			//记录日志文件
 			$filename = APP_PATH.'data/log/socket.log.txt';

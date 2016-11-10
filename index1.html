@@ -11,7 +11,7 @@
 </head>
 <body>
 	<div class="contain">
-		<div class="state"></div>
+		<div class="state" style="height:200px;overflow-y:auto;"></div>
 	
 		<form action="">
 			<textarea id="msg" rows="5" cols="60"></textarea>
@@ -85,7 +85,8 @@
 		else if (message instanceof ArrayBuffer)
 		{
 			
-			console.log('utf8:'+new Byte(message).readUTFBytes());
+			var cnt = new Byte(message).readUTFBytes();
+			$('.state').append(cnt+"<br>");
 		}
 		socket.input.clear();
 	}
