@@ -90,6 +90,43 @@ class socketServer extends Websocket
 		}
 		return $newData;
 	}
+	/**
+	 * 子协议选择
+	 *@param $protocols 子协议
+	 */
+	protected function selectProtocol($protocols)
+	{
+		$pros = explode(',', $protocols);
+		
+		return $pros;
+	}
+	/**
+	 * (non-PHPdoc)
+	 * @see websocket/Websocket::log()
+	 */
+	public function log($msg,$show=false)
+	{
+		if($this->debug || $show){
+			//直接输出
+			$msg.= "+++++++++++++++++++++++++++++++++++++++\n";
+			$msg = iconv('utf-8', 'gbk//IGNORE', $msg);
+			echo $msg;
+			echo "+++++++++++++++++++++++++++++++++++++++\n";
+		}else{
+			//记录日志文件
+			$filename = APP_PATH.'data/log/socket.log.txt';
+			$filesize = 0;
+			if(file_exists($filename)){
+				$filesize = filesize($filename);
+			}
+			//日志超出指定大小，则删除重新记录
+			if($filesize < 63353){
+				file_put_contents($filename, $msg,FILE_APPEND);
+			}else{
+				unlink($filename);
+			}
+		}
+	}
 	public function __destruct() {
 	  	socket_close($this->serverSocket);
 	}
